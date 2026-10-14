@@ -1,0 +1,9 @@
+apiVersion: 1
+
+providers:
+  - name: Spring JVM Lab
+    folder: ""
+    type: file
+
+    options:
+      path: /var/lib/grafana/dashboards

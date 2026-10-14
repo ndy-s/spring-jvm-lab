@@ -1,0 +1,5 @@
+target/
+.idea/
+docker/app/gc-logs/
+docker/app/jfr/
+.env
