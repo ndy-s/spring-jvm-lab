@@ -1,0 +1,53 @@
+groups:
+  - name: jvm-lab
+    rules:
+      - alert: AppDown
+        expr: up{job="spring-jvm-lab"} == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "App is not answering Prometheus scrapes"
+          description: "{{ $labels.instance }} has been unreachable for 30s (crashed, restarting, or hung)."
+
+      - alert: HeapUsageHigh
+        expr: |
+          sum by (instance) (jvm_memory_used_bytes{area="heap"})
+            / max by (instance) (jvm_memory_max_bytes{area="heap"}) > 0.85
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Heap above 85% for 1 minute"
+          description: "Heap is {{ $value | humanizePercentage }} full on {{ $labels.instance }}. Raw heap usage swings with every GC, so check LiveDataAfterGcHigh before calling it a leak."
+
+      - alert: LiveDataAfterGcHigh
+        expr: |
+          max by (instance) (jvm_gc_live_data_size_bytes)
+            / max by (instance) (jvm_gc_max_data_size_bytes) > 0.7
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Old gen still 70%+ full right after GC (likely leak)"
+          description: "After the last collection {{ $value | humanizePercentage }} of the old generation was still live on {{ $labels.instance }}."
+
+      - alert: GcPauseTimeHigh
+        expr: sum by (instance) (rate(jvm_gc_pause_seconds_sum[1m])) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 5% of wall time spent in GC pauses"
+          description: "{{ $labels.instance }} spent {{ $value | humanizePercentage }} of the last minute paused for GC."
+
+      - alert: Http5xxRateHigh
+        expr: |
+          sum by (instance) (rate(http_server_requests_seconds_count{status=~"5.."}[1m]))
+            / sum by (instance) (rate(http_server_requests_seconds_count[1m])) > 0.05
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 5% of requests return 5xx"
+          description: "{{ $value | humanizePercentage }} of requests on {{ $labels.instance }} are failing with 5xx."

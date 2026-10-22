@@ -1,0 +1,11 @@
+# No notification integration: alerts are only shown in the UI at http://localhost:9093.
+# To get notified, add e.g. a slack_configs or webhook_configs block to the receiver.
+route:
+  receiver: lab-ui
+  group_by: [alertname]
+  group_wait: 10s
+  group_interval: 1m
+  repeat_interval: 1h
+
+receivers:
+  - name: lab-ui

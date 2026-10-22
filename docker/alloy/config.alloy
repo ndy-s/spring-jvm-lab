@@ -1,0 +1,58 @@
+// Collects stdout/stderr of every container in this compose project and ships it to Loki.
+// Pipeline: discover containers -> relabel -> read logs -> parse app JSON -> write to Loki.
+// Live view of this pipeline: http://localhost:12345
+
+discovery.docker "compose" {
+  host = "unix:///var/run/docker.sock"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=spring-jvm-lab"]
+  }
+}
+
+discovery.relabel "compose" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+}
+
+loki.source.docker "compose" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.compose.targets
+  relabel_rules = discovery.relabel.compose.rules
+  forward_to    = [loki.process.app_json.receiver]
+}
+
+// The app logs JSON (logstash format). Promote the log level to a label so
+// {service="app", level="ERROR"} works without parsing every line at query time.
+loki.process "app_json" {
+  stage.match {
+    selector = "{service=\"app\"}"
+
+    stage.json {
+      expressions = { level = "level" }
+    }
+
+    stage.labels {
+      values = { level = "" }
+    }
+  }
+
+  forward_to = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
