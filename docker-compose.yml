@@ -1,4 +1,18 @@
 services:
+  app:
+    build: .
+    container_name: app
+    ports:
+      - "8080:8080"
+    mem_limit: 512m
+    cpus: 1.0
+    environment:
+      JAVA_OPTS: ${JAVA_OPTS}
+    volumes:
+      - ./docker/app/gc-logs:/gc-logs
+      - ./docker/app/jfr:/jfr
+    restart: unless-stopped
+
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
